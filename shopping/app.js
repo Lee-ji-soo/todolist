@@ -1,6 +1,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const User = require("./models/user");
+const jwt = require("jsonwebtoken");
+const authMiddleware = require("./middlewares/auth-middleware");
 
 mongoose.connect("mongodb://localhost/shopping-demo", {
   useNewUrlParser: true,
@@ -40,6 +42,28 @@ router.post("/users", async(req, res) => {
   res.status(201).send({ // send는 기본적으로 200을 보냅니다. //created 를 의미하는 201을 보내는 것이 더 적합합니다.
   });
 });
+
+router.post("/auth", async(req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email, password }).exec();
+  
+  if(!user){
+    res.status(401).send({ // 401 인증 실패라는 의미를 가집니다.
+      errorMessage: "아이디 혹은 패스워드가 일치하지 않습니다."
+    })
+    return;
+  }
+
+  const token = jwt.sign({ userId: user.userId }, "my-secret-key");
+  res.send({ token })
+})
+
+router.get("/users/me", authMiddleware, async(req, res) => { //미들웨어를 추가해주어야 auth 과정을 거치게 됩니다.
+  const { user } = res.locals;
+  console.log(user);
+  res.send({ user });
+})
 
 app.use("/api", express.urlencoded({ extended: false }), router);
 app.use(express.static("assets"));
