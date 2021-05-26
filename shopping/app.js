@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const User = require("./models/user");
 const jwt = require("jsonwebtoken");
 const authMiddleware = require("./middlewares/auth-middleware");
+const { joi } = require("./joi");
 
 mongoose.connect("mongodb://localhost/shopping-demo", {
   useNewUrlParser: true,
@@ -36,8 +37,17 @@ router.post("/users", async(req, res) => {
     return;
   }
 
-  const user = new User({ email, nickname, password});
-  await user.save();
+  try{
+    const value = await joi.validateAsync({ email, nickname, password, confirmPassword })  
+    const user = new User(value);
+    await user.save();
+  }catch(err){
+    console.log(err)
+    res.status(400).send({
+      errorMessage: "회원가입을 성공하지 못했습니다."
+    })
+    return;
+  }
 
   res.status(201).send({ // send는 기본적으로 200을 보냅니다. //created 를 의미하는 201을 보내는 것이 더 적합합니다.
   });
