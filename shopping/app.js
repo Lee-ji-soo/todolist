@@ -1,43 +1,43 @@
-const express = require("express");
-const Http = require("http");
-const socketIo = require("socket.io");
-const jwt = require("jsonwebtoken");
-const { Op } = require("sequelize");
-const { User, Cart, Goods } = require("./models");
-const authMiddleware = require("./middlewares/auth-middleware");
+const express = require('express')
+const Http = require('http')
+const socketIo = require('socket.io')
+const jwt = require('jsonwebtoken')
+const { Op } = require('sequelize')
+const { User, Cart, Goods } = require('./models')
+const authMiddleware = require('./middlewares/auth-middleware')
 
-const app = express();
-const http = Http.createServer(app);
-const io = socketIo(http);
-const router = express.Router();
+const app = express()
+const http = Http.createServer(app)
+const io = socketIo(http)
+const router = express.Router()
 
-const socketIdMap = {};
+const socketIdMap = {}
 
-function emitSamePageViewerCount(){
+function emitSamePageViewerCount() {
   const countByUrl = Object.values(socketIdMap).reduce((value, url) => {
-    return{
+    return {
       ...value,
-      [url] : value[url] ? value[url] + 1 : 1
+      [url]: value[url] ? value[url] + 1 : 1,
     }
-  }, {});
+  }, {})
 
-  for(const [socketId, url] of Object.entries(socketIdMap)){
-    const count = countByUrl[url];
-    io.to(socketId).emit("SAME_PAGE_VIEWER_COUNT", count);
+  for (const [socketId, url] of Object.entries(socketIdMap)) {
+    const count = countByUrl[url]
+    io.to(socketId).emit('SAME_PAGE_VIEWER_COUNT', count)
   }
 }
 
-io.on("connection", socket => {
-  socketIdMap[socket.id] = null;
-  console.log("누군가 연결했어요")
+io.on('connection', (socket) => {
+  socketIdMap[socket.id] = null
+  console.log('누군가 연결했어요')
 
-  socket.on("CHANGED_PAGE", data => {
+  socket.on('CHANGED_PAGE', (data) => {
     socketIdMap[socket.id] = data
-    console.log("page changed", data, soclet.id)
-    emitSamePageViewerCount();
+    console.log('page changed', data, soclet.id)
+    emitSamePageViewerCount()
   })
 
-  socket.on("BUY", data => {
+  socket.on('BUY', (data) => {
     const payload = {
       nickname: data.nickname,
       goodsId: data.goodsId,
@@ -45,86 +45,87 @@ io.on("connection", socket => {
       date: new Date().toISOString(),
     }
     console.log('클라이언트가 보낸 데이터')
-    
+
     //모든 애들에게 보내기
-    io.emit("BUY_GOODS", payload)
-    
+    io.emit('BUY_GOODS', payload)
+
     //나를 제외한 모두에게 보내기
-    socket.broadcast.emit("BUY_GOODS", payload)
+    socket.broadcast.emit('BUY_GOODS', payload)
   })
 
-  socket.on("disconnect", () => {
+  socket.on('disconnect', () => {
     delete socketIdMap[socket.id]
     console.log('누군가 연결을 끊었습니다.')
-    emitSamePageViewerCount();
+    emitSamePageViewerCount()
   })
-});
+})
 
-router.post("/users", async (req, res) => {
-  const { nickname, email, password, confirmPassword } = req.body;
+router.post('/users', async (req, res) => {
+  const { nickname, email, password, confirmPassword } = req.body
 
   if (password !== confirmPassword) {
     res.status(400).send({
-      errorMessage: "패스워드가 패스워드 확인란과 동일하지 않습니다.",
-    });
-    return;
+      errorMessage: '패스워드가 패스워드 확인란과 동일하지 않습니다.',
+    })
+    return
   }
 
-  const existUsers = await User.findAll({ // find라는 명령어는 sequelize에 없습니다.
+  const existUsers = await User.findAll({
+    // find라는 명령어는 sequelize에 없습니다.
     where: {
       [Op.or]: [{ nickname }, { email }], // Op.or : 하나라도 해당할 경우 가져오기
     },
-  });
+  })
   if (existUsers.length) {
     res.status(400).send({
-      errorMessage: "이미 가입된 이메일 또는 닉네임이 있습니다.",
-    });
-    return;
+      errorMessage: '이미 가입된 이메일 또는 닉네임이 있습니다.',
+    })
+    return
   }
 
-  await User.create({ email, nickname, password }); // create로 생성. sequelize에서는 save.() 필요없음
+  await User.create({ email, nickname, password }) // create로 생성. sequelize에서는 save.() 필요없음
 
-  res.status(201).send({});
-});
+  res.status(201).send({})
+})
 
-router.post("/auth", async (req, res) => {
-  const { email, password } = req.body;
+router.post('/auth', async (req, res) => {
+  const { email, password } = req.body
 
-  const user = await User.findOne({ where: { email, password } });
+  const user = await User.findOne({ where: { email, password } })
 
   if (!user) {
     res.status(400).send({
-      errorMessage: "이메일 또는 패스워드가 잘못됐습니다.",
-    });
-    return;
+      errorMessage: '이메일 또는 패스워드가 잘못됐습니다.',
+    })
+    return
   }
 
-  const token = jwt.sign({ userId: user.userId }, "my-secret-key");
+  const token = jwt.sign({ userId: user.userId }, 'my-secret-key')
   res.send({
     token,
-  });
-});
+  })
+})
 
-router.get("/users/me", authMiddleware, async (req, res) => {
-  const { user } = res.locals;
+router.get('/users/me', authMiddleware, async (req, res) => {
+  const { user } = res.locals
   res.send({
     user,
-  });
-});
+  })
+})
 
 /**
  * 내가 가진 장바구니 목록을 전부 불러온다.
  */
-router.get("/goods/cart", authMiddleware, async (req, res) => {
-  const { userId } = res.locals.user;
+router.get('/goods/cart', authMiddleware, async (req, res) => {
+  const { userId } = res.locals.user
 
   const cart = await Cart.findAll({
     where: {
       userId,
     },
-  });
+  })
 
-  const goodsIds = cart.map((c) => c.goodsId);
+  const goodsIds = cart.map((c) => c.goodsId)
 
   // 루프 줄이기 위해 Mapping 가능한 객체로 만든것
   const goodsKeyById = await Goods.findAll({
@@ -139,69 +140,69 @@ router.get("/goods/cart", authMiddleware, async (req, res) => {
       }),
       {}
     )
-  );
+  )
 
   res.send({
     cart: cart.map((c) => ({
       quantity: c.quantity,
       goods: goodsKeyById[c.goodsId],
     })),
-  });
-});
+  })
+})
 
 /**
  * 장바구니에 상품 담기.
  * 장바구니에 상품이 이미 담겨있으면 갯수만 수정한다.
  */
-router.put("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
-  const { userId } = res.locals.user;
-  const { goodsId } = req.params;
-  const { quantity } = req.body;
+router.put('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
+  const { userId } = res.locals.user
+  const { goodsId } = req.params
+  const { quantity } = req.body
 
   const existsCart = await Cart.findOne({
     where: {
       userId,
       goodsId,
     },
-  });
+  })
 
   if (existsCart) {
-    existsCart.quantity = quantity;
-    await existsCart.save();
+    existsCart.quantity = quantity
+    await existsCart.save()
   } else {
     await Cart.create({
       userId,
       goodsId,
       quantity,
-    });
+    })
   }
 
   // NOTE: 성공했을때 응답 값을 클라이언트가 사용하지 않는다.
-  res.send({});
-});
+  res.send({})
+})
 
 /**
  * 장바구니 항목 삭제
  */
-router.delete("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
-  const { userId } = res.locals.user;
-  const { goodsId } = req.params;
+router.delete('/goods/:goodsId/cart', authMiddleware, async (req, res) => {
+  const { userId } = res.locals.user
+  const { goodsId } = req.params
 
   const existsCart = await Cart.findOne({
     where: {
       userId,
       goodsId,
     },
-  });
+  })
 
   // 있든 말든 신경 안쓴다. 그냥 있으면 지운다.
   if (existsCart) {
-    await existsCart.destroy();
+    await existsCart.destroy()
   }
 
   // NOTE: 성공했을때 딱히 정해진 응답 값이 없다.
-  res.send({});
-});
+  res.send({})
+})
 
 /**
  * 모든 상품 가져오기
@@ -211,33 +212,33 @@ router.delete("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
  * /api/goods?category=drink
  * /api/goods?category=drink2
  */
-router.get("/goods", authMiddleware, async (req, res) => {
-  const { category } = req.query;
+router.get('/goods', authMiddleware, async (req, res) => {
+  const { category } = req.query
   const goods = await Goods.findAll({
-    order: [["goodsId", "DESC"]],
+    order: [['goodsId', 'DESC']],
     where: category ? { category } : undefined,
-  });
+  })
 
-  res.send({ goods });
-});
+  res.send({ goods })
+})
 
 /**
  * 상품 하나만 가져오기
  */
-router.get("/goods/:goodsId", authMiddleware, async (req, res) => {
-  const { goodsId } = req.params;
-  const goods = await Goods.findByPk(goodsId);
+router.get('/goods/:goodsId', authMiddleware, async (req, res) => {
+  const { goodsId } = req.params
+  const goods = await Goods.findByPk(goodsId)
 
   if (!goods) {
-    res.status(404).send({});
+    res.status(404).send({})
   } else {
-    res.send({ goods });
+    res.send({ goods })
   }
-});
+})
 
-app.use("/api", express.urlencoded({ extended: false }), router);
-app.use(express.static("assets"));
+app.use('/api', express.urlencoded({ extended: false }), router)
+app.use(express.static('assets'))
 
 http.listen(8080, () => {
-  console.log("서버가 요청을 받을 준비가 됐어요");
-});
+  console.log('서버가 요청을 받을 준비가 됐어요')
+})
