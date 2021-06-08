@@ -1,11 +1,64 @@
 const express = require("express");
-const { Op } = require("sequelize");
+const Http = require("http");
+const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
 const { User, Cart, Goods } = require("./models");
 const authMiddleware = require("./middlewares/auth-middleware");
 
 const app = express();
+const http = Http.createServer(app);
+const io = socketIo(http);
 const router = express.Router();
+
+const socketIdMap = {};
+
+function emitSamePageViewerCount(){
+  const countByUrl = Object.values(socketIdMap).reduce((value, url) => {
+    return{
+      ...value,
+      [url] : value[url] ? value[url] + 1 : 1
+    }
+  }, {});
+
+  for(const [socketId, url] of Object.entries(socketIdMap)){
+    const count = countByUrl[url];
+    io.to(socketId).emit("SAME_PAGE_VIEWER_COUNT", count);
+  }
+}
+
+io.on("connection", socket => {
+  socketIdMap[socket.id] = null;
+  console.log("누군가 연결했어요")
+
+  socket.on("CHANGED_PAGE", data => {
+    socketIdMap[socket.id] = data
+    console.log("page changed", data, soclet.id)
+    emitSamePageViewerCount();
+  })
+
+  socket.on("BUY", data => {
+    const payload = {
+      nickname: data.nickname,
+      goodsId: data.goodsId,
+      goodsName: data.goodsName,
+      date: new Date().toISOString(),
+    }
+    console.log('클라이언트가 보낸 데이터')
+    
+    //모든 애들에게 보내기
+    io.emit("BUY_GOODS", payload)
+    
+    //나를 제외한 모두에게 보내기
+    socket.broadcast.emit("BUY_GOODS", payload)
+  })
+
+  socket.on("disconnect", () => {
+    delete socketIdMap[socket.id]
+    console.log('누군가 연결을 끊었습니다.')
+    emitSamePageViewerCount();
+  })
+});
 
 router.post("/users", async (req, res) => {
   const { nickname, email, password, confirmPassword } = req.body;
@@ -17,9 +70,9 @@ router.post("/users", async (req, res) => {
     return;
   }
 
-  const existUsers = await User.findAll({
+  const existUsers = await User.findAll({ // find라는 명령어는 sequelize에 없습니다.
     where: {
-      [Op.or]: [{ nickname }, { email }],
+      [Op.or]: [{ nickname }, { email }], // Op.or : 하나라도 해당할 경우 가져오기
     },
   });
   if (existUsers.length) {
@@ -29,7 +82,7 @@ router.post("/users", async (req, res) => {
     return;
   }
 
-  await User.create({ email, nickname, password });
+  await User.create({ email, nickname, password }); // create로 생성. sequelize에서는 save.() 필요없음
 
   res.status(201).send({});
 });
@@ -185,6 +238,6 @@ router.get("/goods/:goodsId", authMiddleware, async (req, res) => {
 app.use("/api", express.urlencoded({ extended: false }), router);
 app.use(express.static("assets"));
 
-app.listen(8080, () => {
+http.listen(8080, () => {
   console.log("서버가 요청을 받을 준비가 됐어요");
 });
