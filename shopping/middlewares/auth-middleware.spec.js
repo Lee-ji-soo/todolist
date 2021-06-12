@@ -4,7 +4,7 @@ jest.mock('../models')
 const { User } = require('../models')
 
 test('정상적인 토큰을 넣은 경우 User.findByPk가 실행된다', () => {
-  User.findByPk = jest.fn()
+  User.findByPk = jest.fn() //mocking
 
   authMiddleware(
     {
