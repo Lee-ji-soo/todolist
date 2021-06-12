@@ -14,12 +14,10 @@ module.exports = (req, res, next) => {
 
   try {
     const { userId } = jwt.verify(tokenValue, 'my-secret-key')
-    User.findById(userId)
-      .exec()
-      .then((user) => {
-        res.locals.user = user
-        next()
-      })
+    User.findByPk(userId).then((user) => {
+      res.locals.user = user
+      next()
+    })
   } catch (err) {
     res.status(401).send({
       errorMessage: '로그인 후 사용하세요',

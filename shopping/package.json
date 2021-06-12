@@ -1,14 +1,18 @@
 {
   "scripts": {
-    "prettify": "prettier --write *.js **/*.js"
+    "prettify": "prettier --write *.js **/*.js",
+    "test": "jest"
   },
   "dependencies": {
     "express": "^4.17.1",
     "joi": "^17.4.0",
     "jsonwebtoken": "^8.5.1",
+    "sequelize": "^6.6.2",
     "socket.io": "^4.1.2"
   },
   "devDependencies": {
-    "prettier": "^2.3.1"
+    "jest": "^27.0.4",
+    "prettier": "^2.3.1",
+    "supertest": "^6.1.3"
   }
 }
