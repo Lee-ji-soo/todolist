@@ -2,7 +2,7 @@ const express = require('express')
 const Http = require('http')
 const jwt = require('jsonwebtoken')
 const { Op } = require('sequelize')
-const { User, Cart, Goods } = require('./models')
+const { User, Cart, Goods } = require('./models/index')
 const authMiddleware = require('./middlewares/auth-middleware')
 
 const app = express()
@@ -188,4 +188,7 @@ router.get('/goods/:goodsId', authMiddleware, async (req, res) => {
 app.use('/api', express.urlencoded({ extended: false }), router)
 app.use(express.static('assets'))
 
+app.listen(8080, ()=>{
+  console.log('서버 이스 온')
+})
 module.exports = http
