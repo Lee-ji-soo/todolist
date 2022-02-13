@@ -1,19 +1,8 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-const { User } = require("./models");
-const Goods = require("./models/goods");
-const Cart = require("./models/cart");
+const { User, Goods, Cart } = require("./models");
 const authMiddleware = require("./middlewares/auth-middleware");
-
-mongoose.connect("mongodb://localhost/shopping-demo", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-const db = mongoose.connection;
-db.on("error", console.error.bind(console, "erorr occured: "));
 
 const app = express();
 const router = express.Router();
@@ -68,13 +57,15 @@ router.get("/users/me", authMiddleware, async (req, res) => {
 router.get("/goods/cart", authMiddleware, async (req, res) => {
   const { userId } = res.locals.user;
 
-  const cart = await Cart.find({
-    userId,
-  }).exec();
-
-  const goodsIds = cart.map((c) => c.goodsIds);
-
-  const goodsByIds = await Goods.find({ _id: { $in: goodsIds } }).exec();
+  const cart = await Cart.findAll({
+    where: {
+      userId,
+    },
+  });
+  const goodsIds = cart.map((c) => c.goodsId);
+  const goodsByIds = await Goods.findAll({
+    where: { goodsId: goodsIds },
+  });
   const goodsKeyById = goodsByIds.reduce((prev, g) => {
     return { ...prev, [g.goodsId]: g };
   }, {});
@@ -97,22 +88,19 @@ router.put("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
   const { quantity } = req.body;
 
   const existsCart = await Cart.findOne({
-    userId,
-    goodsIs,
-  }).exec();
+    where: { userId, goodsId },
+  });
 
-  if (existCart) {
+  if (existsCart) {
     existsCart.quantity = quantity;
     await existsCart.save();
   } else {
-    const cart = new Cart({
+    await Cart.create({
       userId,
       goodsId,
       quantity,
     });
-    await cart.save();
   }
-
   res.send({});
 });
 
@@ -121,12 +109,14 @@ router.delete("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
   const { goodsId } = req.params;
 
   const existsCart = await Cart.findOne({
-    userId,
-    goodsId,
-  }).exec();
+    where: {
+      userId,
+      goodsId,
+    },
+  });
 
   if (existsCart) {
-    existsCart.delete();
+    existsCart.destroy();
   }
 
   res.send({});
@@ -134,15 +124,20 @@ router.delete("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
 
 router.get("/goods", authMiddleware, async (req, res) => {
   const { category } = req.query;
-  const goods = await Goods.find(category ? { cateogry } : undefined)
-    .sort("-date")
-    .exec();
+  const goods = await Goods.findAll({
+    where: category
+      ? {
+          category,
+        }
+      : undefined,
+  });
   res.send({ goods });
 });
 
 router.get("/goods/:goodsId", authMiddleware, async (req, res) => {
   const { goodsId } = req.params;
-  const goods = await Goods.findById(goodsId).exec();
+  const goods = await Goods.findByPk(goodsId);
+  console.log(goods);
 
   if (!goods) {
     res.status(404).send({

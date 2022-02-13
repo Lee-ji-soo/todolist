@@ -2,7 +2,7 @@ const express = require('express')
 const Http = require('http')
 const jwt = require('jsonwebtoken')
 const { Op } = require('sequelize')
-const { User, Cart, Goods } = require('./models/index')
+const { User, Cart, Goods } = require('./models')
 const authMiddleware = require('./middlewares/auth-middleware')
 
 const app = express()
@@ -31,7 +31,6 @@ router.post('/users', async (req, res) => {
     })
     return
   }
-
   await User.create({ email, nickname, password }) // create로 생성. sequelize에서는 save.() 필요없음
 
   res.status(201).send({})
@@ -42,7 +41,7 @@ router.post('/auth', async (req, res) => {
 
   const user = await User.findOne({ where: { email, password } })
 
-  if (!user) {
+  if (!user || user.password !== password) {
     res.status(400).send({
       errorMessage: '이메일 또는 패스워드가 잘못됐습니다.',
     })
@@ -50,15 +49,15 @@ router.post('/auth', async (req, res) => {
   }
 
   const token = jwt.sign({ userId: user.userId }, 'my-secret-key')
+  console.log(token)
   res.send({
     token,
   })
 })
 
 router.get('/users/me', authMiddleware, async (req, res) => {
-  const { user } = res.locals
   res.send({
-    user,
+    user: res.locals.user,
   })
 })
 
