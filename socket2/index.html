@@ -66,6 +66,11 @@
 </head>
 
 <body>
+	<ul id="messages"></ul>
+	<form id="form" action="">
+		<input id="input" autocomplete="off" /><button>Send</button>
+	</form>
+
 	<script>
 		const socket = io('ws://localhost:3000');
 		socket.on('connect', () => {
@@ -76,15 +81,28 @@
 			console.log('front - data', data)
 		});
 
-		socket.on('customEventName', (data) => {
-			console.log(data)
+
+		const messages = document.getElementById('messages');
+		const form = document.getElementById('form');
+		const input = document.getElementById('input');
+
+
+		form.addEventListener('submit', function (e) {
+			e.preventDefault();
+			if (input.value) {
+				socket.emit('CHAT_SUBMIT', input.value);
+				input.value = ''
+			}
+		})
+
+		socket.on('CHAT_SUBMIT', (data) => {
+			const item = document.createElement('li');
+			item.textContent = data;
+			messages.appendChild(item);
+			window.scrollTo(0, document.body.scrollHeight)
 		})
 	</script>
 
-	<ul id="messages"></ul>
-	<form id="form" action="">
-		<input id="input" autocomplete="off" /><button>Send</button>
-	</form>
 </body>
 
 </html>
