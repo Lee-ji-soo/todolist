@@ -4,49 +4,10 @@ const { Op } = require("sequelize");
 const { User, Goods, Cart } = require("./models");
 const authMiddleware = require("./middlewares/auth-middleware");
 const { Server } = require("http");
-const SocketIo = require("socket.io");
 
 const app = express();
 const http = Server(app);
-const io = SocketIo(http);
 const router = express.Router();
-
-const socketIdMap = {};
-
-const emitSamePageViewerCount = () => {
-  const countByUrl = Object.values(socketIdMap).reduce((value, url) => {
-    return {
-      ...value,
-      [url]: value[url] ? value[url] + 1 : 1,
-    };
-  }, {});
-
-  for (const [socketId, url] of Object.entries(socketIdMap)) {
-    const count = countByUrl[url];
-    io.to(socketId).emit("SAME_PAGE_VIEWER_COUNT", count);
-  }
-};
-io.on("connection", (socket) => {
-  socketIdMap[socket.id] = null;
-  console.log("새로운 소켓이 연결됐어요!");
-
-  socket.on("BUY", (data) => {
-    const emitData = {
-      ...data,
-      date: new Date().toISOString(),
-    };
-    newData = emitData;
-    io.emit("BUY_GOODS", emitData);
-  });
-  socket.on("disconnect", () => {
-    console.log(socket.id, "소캣 연결이 끊겼어요!");
-  });
-
-  socket.on("CHANGED_PAGE", (data) => {
-    socketIdMap[socket.id] = data;
-    emitSamePageViewerCount();
-  });
-});
 
 router.post("/users", async (req, res) => {
   const { email, nickname, password, confirmPassword } = req.body;
@@ -191,6 +152,5 @@ router.get("/goods/:goodsId", authMiddleware, async (req, res) => {
 app.use("/api", express.urlencoded({ extended: false }), router);
 app.use(express.static("assets"));
 
-http.listen(8080, () => {
-  console.log("💚 shoppingmall 서버가 켜졌어요");
-});
+
+module.exports = http;
