@@ -12,9 +12,7 @@ const io = socketIo(http, {
   }
 });
 
-app.get("/test", (req, res) => {
-  res.send("익스프레스 잘 켯씁니다. test")
-})
+app.use(express.static('assets'))
 
 http.listen(3000, () => {
   console.log("서버가 켜졌습니다. http")
@@ -25,5 +23,7 @@ io.on("connection", socket => {
 
   socket.send("너 연결 잘 됬어@") // send : message ("message", "너 연결 잘됬어")
 
-  socket.emit("customEventName", "새로운 이벤트인가?")
+  socket.on('customEventName', (data) => {
+    socket.emit("customEventName", `${data} : msg from fe`)
+  })
 })
