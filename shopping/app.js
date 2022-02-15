@@ -187,7 +187,7 @@ router.get('/goods/:goodsId', authMiddleware, async (req, res) => {
 app.use('/api', express.urlencoded({ extended: false }), router)
 app.use(express.static('assets'))
 
-app.listen(8080, ()=>{
+app.listen(8080, () => {
   console.log('서버 이스 온')
 })
 module.exports = http
